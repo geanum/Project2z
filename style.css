@@ -30,10 +30,21 @@ path:hover {
   fill-opacity: .7;
 }
 
+div#chart {
+  float:left;
+}
+
+div#pie {
+}
+
 .line {
   fill: none;
   stroke: steelblue;
   stroke-width: 2px;
+}
+
+.line:hover {
+  stroke-width: 5px;
 }
 
 .d3-tip {
