@@ -225,13 +225,11 @@ var removeLine = (d, i) => {
   var x = d3.scaleTime().range([0, width - margin.left - margin.right]),
       y = d3.scaleLinear().range([0, height - margin.bottom - margin.top]);
 
-  var drawLine = d3.line()
-    .curve(d3.curveBasis)
-    .x(function(d) { return x(d.date); })
-    .y(function(d) { return y(d.value); });
-
   var chart = d3.select('#chart')
     .select('svg');
+
+  x.domain([new Date(1996, 04), new Date(2016,12)]);
+  y.domain([0,0]);
 
   if(stateStack.length == 0) 
     chartMax = 0;
@@ -240,30 +238,19 @@ var removeLine = (d, i) => {
 
     var id = stateStack.pop();
 
-
-    if (calculateMax(id) == chartMax) {
-      chartMax = oldMax;
-    }
-
     if(stateStack.length == 0) 
       chartMax = 0;
-    
+
     id = id.replace(/\s/g, '');
 
     d3.selectAll('path#' + id).style('opacity', 0);
   }
-
-
-  x.domain([new Date(1996, 04), new Date(2016,12)]);
-  y.domain([chartMax,0]);
-
-  chart.select(".axisY") // change the y axis
-    .transition()
-      .duration(750)
-      .call(d3.axisLeft(y))
-
-  chart.selectAll('path.line')
-    .attr('d', function(d) { return drawLine(d); });
+  if (chartMax == 0) {
+    chart.select(".axisY") // change the y axis
+      .transition()
+        .duration(750)
+        .call(d3.axisLeft(y))
+  }
 }
 
 var createChart = () => {
@@ -321,10 +308,8 @@ var calculateMax = (state) => {
       stateMax = stateArray[i].value;
   }
 
-  if (chartMax < stateMax) {
-    oldMax = chartMax;
+  if (chartMax < stateMax)
     chartMax = stateMax;
-  }
 
   return chartMax;
 }
@@ -484,7 +469,6 @@ var createPie = () => {
 var data;
 var dataPie;
 var chartMax = 0;
-var oldMax;
 var stateStack = [];
 getData(function(d) {
   data = d;
