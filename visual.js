@@ -32,6 +32,15 @@ var createMap = () => {
 
 var drawMap = (svg, path) => {
 
+  //var colors = ["#ffffb2", "#fed976", "#feb24c", "#fd8d3c", "#f03b20", "#bd0026"];
+  var colors = ["#ffffcc", "#a1dab4", "#41b6c4", "#2c7fb8", "#253494"];
+
+  var colorScale = d3.scaleQuantile()
+      .domain([50, 100, 200, 300])
+      .range(colors);
+
+  console.log('LOL')
+  console.log(colorScale.quantiles());
   // Load GeoJSON data and merge with states data
   d3.json('states.json', function(json) {
 
@@ -41,23 +50,35 @@ var drawMap = (svg, path) => {
       .enter()
       .append('path')
       .attr('d', path)
+      .on('click', function(d) { mapOnClick(d.properties.name); })
       .style('stroke', '#fff')
       .style('stroke-width', '1')
-      .style('fill', 'steelblue')
-      .on('click', function(d) { mapOnClick(d.properties.name); });
+      .style('fill', 'white')
+      .transition()
+        .delay(function(d, i) { return i * 10; })
+        .duration(750)
+          .style('fill', function(d,i) {
+
+            var selectState = data[d.properties.name]
+
+            if (!selectState)
+              return 'grey';
+
+            var latestDate = selectState.length - 1;
+            return colorScale(selectState[latestDate].value);
+          })
   });
 }
 
 // On map single click: update chart with state info
 var mapOnClick = (selectState) => {
 
+  if (!data[selectState])
+    return;
+
   var width = 500,
       height = 350,
       margin = {top: 20, right: 0, bottom: 30, left: 50};
-
-  //var selectState = d.properties.name;
-
-  console.log(data[selectState])
 
   var t = d3.transition()
       .duration(750);
@@ -89,6 +110,7 @@ var mapOnClick = (selectState) => {
       .attr('d', function(d) { return drawLine(d); })
       .attr('transform', 'translate(' + 30 + ',0)')
       .style('opacity', 1e-6)
+      .on('click', removeLine())
       .transition()
         .duration(400)
         .style("opacity", 1);
@@ -96,10 +118,66 @@ var mapOnClick = (selectState) => {
   chart.selectAll('path.line')
     .attr('d', function(d) { return drawLine(d); });
 
-  chart.selectAll('path.line')
-    .on('click', removeLine());
+  updatePie(selectState);
 
   console.log(selectState);
+}
+
+var updatePie = (selectState) => {
+
+  var pie = d3.pie()
+      .sort(null)
+      .value(function(d) { return d.value; })
+
+  var svg = d3.select('#pie')
+    .select('svg')
+
+  var selectData = dataPie[selectState];
+
+  if (!selectData) {
+    var dummyData = [
+      {
+        type: 'gain',
+        value: 0
+      },
+      {
+        type: 'loss',
+        value: 0
+      },
+      {
+        type: 'blank',
+        value: 1
+      }
+    ]
+
+    selectData = dummyData;
+  }
+  else
+    selectData = selectData['2016-12'];
+
+
+  var path = svg.selectAll('path')
+    .data(pie(selectData))
+
+  path.transition().duration(500).attrTween("d", arcTween); // redraw the arcs
+}
+
+var arcTween = (a) => {
+
+  var width = 320,
+    height = 320,
+    radius = Math.min(width, height) / 2;
+
+  var arc = d3.arc()
+    .innerRadius(radius - 70)
+    .outerRadius(radius - 10)
+    .cornerRadius(5);
+
+  var i = d3.interpolate(this._current, a);
+  this._current = i(0);
+  return function(t) {
+    return arc(i(t));
+  };
 }
 
 var removeLine = (id) => {
@@ -146,8 +224,6 @@ var createChart = () => {
       .attr('fill', '#000')
       .text('($)');
 
-  console.log(data);
-
 }
 
 var calculateMax = (state) => {
@@ -163,13 +239,8 @@ var calculateMax = (state) => {
       stateMax = stateArray[i].value;
   }
 
-  console.log('stateMax: ' + stateMax);
-  console.log(chartMax);
-
   if (chartMax < stateMax)
     chartMax = stateMax;
-
-  console.log(chartMax);
 
   return chartMax;
 }
@@ -237,17 +308,24 @@ var getDataPie = (callback) => {
         dateGain = {
           type: 'gain',
           date: parseTime(key),
-          value: parseInt(d[key])
+          value: parseFloat(d[key])
         };
 
         dateLoss = {
           type: 'loss',
           date: parseTime(key),
-          value: 100 - parseInt(d[key])
+          value: 100 - parseFloat(d[key])
+        };
+
+        dateEven = {
+          type: 'blank',
+          date: parseTime(key),
+          value: 0
         };
 
         dataPoints.push(dateGain);
         dataPoints.push(dateLoss);
+        dataPoints.push(dateEven);
 
         dateGainLoss[key] = dataPoints;
 
@@ -267,11 +345,12 @@ var createPie = () => {
     radius = Math.min(width, height) / 2;
 
   var color = d3.scaleOrdinal()
-    .range(['#5858a7','#a75858', '#edf8b1']);
+    .range(['#b9e3b6','#c44f41', 'grey']);
 
   var arc = d3.arc()
     .innerRadius(radius - 70)
-    .outerRadius(radius - 10);
+    .outerRadius(radius - 10)
+    .cornerRadius(5);
 
   var labelArc = d3.arc()
       .outerRadius(radius - 10)
@@ -287,12 +366,27 @@ var createPie = () => {
   .append("g")
     .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
 
-  var selectedData = dataPie['California'];
+  var dummyData = [
+    {
+      type: 'gain',
+      value: 0
+    },
+    {
+      type: 'loss',
+      value: 0
+    },
+    {
+      type: 'blank',
+      value: 1
+    }
+  ]
 
-  console.log(selectedData);
+  dataPie['California'];
 
-  var path = svg.selectAll('.arc')
-    .data(pie(selectedData['2016-12']))
+  //console.log(selectedData);
+
+  var path = svg.selectAll('path')
+    .data(pie(dummyData))
     .enter()
     .append('path')
     .attr('d', arc)
