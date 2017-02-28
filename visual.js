@@ -69,7 +69,7 @@ var drawMap = (svg, path) => {
     var legendHold = d3.select('#legend')
         .append('svg')
         .attr('width', 960)
-        .attr('height', 40);
+        .attr('height', 25);
 
     var legend = legendHold.selectAll(".legend")
         .data([0].concat(colorScale.quantiles()), function(d) { return d; });
@@ -93,7 +93,7 @@ var drawMap = (svg, path) => {
           return "High"
       })
       .attr("x", function(d, i) { return 80 * i + 20; })
-      .attr("y", 20);
+      .attr("y", 22);
 
     legend.exit().remove();
   });
@@ -106,12 +106,13 @@ var mapOnClick = (selectState) => {
   if (!data[selectState])
     return;
 
+  stateStack.push(selectState);
+
+  console.log(stateStack);
+
   var width = 500,
       height = 350,
       margin = {top: 20, right: 0, bottom: 30, left: 50};
-
-  var t = d3.transition()
-      .duration(750);
 
   var chart = d3.select('#chart')
     .select('svg')
@@ -127,20 +128,22 @@ var mapOnClick = (selectState) => {
   x.domain([new Date(1996, 04), new Date(2016,12)]);
   y.domain([calculateMax(selectState),0]);
 
-  chart.select(".axisY") // change the x axis
+  chart.select(".axisY") // change the y axis
     .transition()
       .duration(750)
       .call(d3.axisLeft(y))
+
+  var lineID = selectState.replace(/\s/g, '');
 
   // ENTER new elements present in new data.
   chart.append('path')
       .datum(data[selectState])
       .attr('class', 'line')
-      .attr('id', selectState)
+      .attr('id', lineID)
       .attr('d', function(d) { return drawLine(d); })
       .attr('transform', 'translate(' + 30 + ',0)')
       .style('opacity', 1e-6)
-      .on('click', d3.select(this).remove())
+      //.on('click', removeLine)
       .transition()
         .duration(400)
         .style("opacity", 1);
@@ -213,11 +216,54 @@ var arcTween = (a) => {
   };
 }
 
-var removeLine = (line) => {
-  console.log(line);
-  line.remove();
-  //console.log(id);
-  //d3.select('#' + id).remove();
+var removeLine = (d, i) => {
+
+  var width = 500,
+      height = 350,
+      margin = {top: 20, right: 0, bottom: 30, left: 50};
+
+  var x = d3.scaleTime().range([0, width - margin.left - margin.right]),
+      y = d3.scaleLinear().range([0, height - margin.bottom - margin.top]);
+
+  var drawLine = d3.line()
+    .curve(d3.curveBasis)
+    .x(function(d) { return x(d.date); })
+    .y(function(d) { return y(d.value); });
+
+  var chart = d3.select('#chart')
+    .select('svg');
+
+  if(stateStack.length == 0) 
+    chartMax = 0;
+
+  else {
+
+    var id = stateStack.pop();
+
+
+    if (calculateMax(id) == chartMax) {
+      chartMax = oldMax;
+    }
+
+    if(stateStack.length == 0) 
+      chartMax = 0;
+    
+    id = id.replace(/\s/g, '');
+
+    d3.selectAll('path#' + id).style('opacity', 0);
+  }
+
+
+  x.domain([new Date(1996, 04), new Date(2016,12)]);
+  y.domain([chartMax,0]);
+
+  chart.select(".axisY") // change the y axis
+    .transition()
+      .duration(750)
+      .call(d3.axisLeft(y))
+
+  chart.selectAll('path.line')
+    .attr('d', function(d) { return drawLine(d); });
 }
 
 var createChart = () => {
@@ -227,7 +273,8 @@ var createChart = () => {
 
   var svg = d3.select('#chart').append('svg')
     .attr('width', width)
-    .attr('height', height);
+    .attr('height', height)
+    .on('click', removeLine);
     
   var margin = {top: 20, right: 0, bottom: 30, left: 50},
       g = svg.append('g').attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
@@ -274,8 +321,10 @@ var calculateMax = (state) => {
       stateMax = stateArray[i].value;
   }
 
-  if (chartMax < stateMax)
+  if (chartMax < stateMax) {
+    oldMax = chartMax;
     chartMax = stateMax;
+  }
 
   return chartMax;
 }
@@ -435,6 +484,8 @@ var createPie = () => {
 var data;
 var dataPie;
 var chartMax = 0;
+var oldMax;
+var stateStack = [];
 getData(function(d) {
   data = d;
   getDataPie(function(d2) {

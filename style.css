@@ -29,6 +29,12 @@ svg {
   display: block;
 }
 
+text.mono {
+  font-size: 7pt;
+  font-family: Consolas, courier;
+  fill: #aaa;
+}
+
 
 path:hover {
   fill-opacity: .7;
