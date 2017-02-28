@@ -39,8 +39,6 @@ var drawMap = (svg, path) => {
       .domain([50, 100, 200, 300])
       .range(colors);
 
-  console.log('LOL')
-  console.log(colorScale.quantiles());
   // Load GeoJSON data and merge with states data
   d3.json('states.json', function(json) {
 
@@ -66,8 +64,40 @@ var drawMap = (svg, path) => {
 
             var latestDate = selectState.length - 1;
             return colorScale(selectState[latestDate].value);
-          })
+          });
+
+    var legendHold = d3.select('#legend')
+        .append('svg')
+        .attr('width', 960)
+        .attr('height', 40);
+
+    var legend = legendHold.selectAll(".legend")
+        .data([0].concat(colorScale.quantiles()), function(d) { return d; });
+
+    legend = legend.enter().append("g")
+        .attr("class", "legend");
+
+    legend.append("rect")
+      .attr("x", function(d, i) { return 80 * i + 20; })
+      .attr("y", 0)
+      .attr("width", 80)
+      .attr("height", 20 / 2)
+      .style("fill", function(d, i) { return colors[i]; });
+
+    legend.append("text")
+      .attr("class", "mono")
+      .text(function(d,i) {
+        if (i == 0)
+          return "Low"
+        if (i == 4) 
+          return "High"
+      })
+      .attr("x", function(d, i) { return 80 * i + 20; })
+      .attr("y", 20);
+
+    legend.exit().remove();
   });
+
 }
 
 // On map single click: update chart with state info
@@ -110,7 +140,7 @@ var mapOnClick = (selectState) => {
       .attr('d', function(d) { return drawLine(d); })
       .attr('transform', 'translate(' + 30 + ',0)')
       .style('opacity', 1e-6)
-      .on('click', removeLine())
+      .on('click', d3.select(this).remove())
       .transition()
         .duration(400)
         .style("opacity", 1);
@@ -159,6 +189,9 @@ var updatePie = (selectState) => {
   var path = svg.selectAll('path')
     .data(pie(selectData))
 
+  var text = svg.select('text')
+    .text(selectState);
+
   path.transition().duration(500).attrTween("d", arcTween); // redraw the arcs
 }
 
@@ -180,8 +213,10 @@ var arcTween = (a) => {
   };
 }
 
-var removeLine = (id) => {
-  console.log('lel');
+var removeLine = (line) => {
+  console.log(line);
+  line.remove();
+  //console.log(id);
   //d3.select('#' + id).remove();
 }
 
@@ -381,10 +416,6 @@ var createPie = () => {
     }
   ]
 
-  dataPie['California'];
-
-  //console.log(selectedData);
-
   var path = svg.selectAll('path')
     .data(pie(dummyData))
     .enter()
@@ -393,6 +424,10 @@ var createPie = () => {
     .attr('fill', function(d, i) {
       return color(d.data.type)
     });
+
+  svg.append('text')
+    .attr('text-anchor', 'middle')
+    .text('');
 }
 
 

@@ -16,6 +16,10 @@ p {
   text-justify: inter-word;
 }
 
+div p {
+  text-align: center;
+}
+
 div {
   display: block;
 }
